@@ -15,7 +15,7 @@ BOT_TOKEN = os.environ["BOT_TOKEN"]
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "kip-helper-secret")
 BASE_URL = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash-lite")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.6-flash")
 
 bot = Bot(BOT_TOKEN)
 dp = Dispatcher()
@@ -522,8 +522,9 @@ def resistor_to_colors(value):
 async def ai_text(prompt):
     import asyncio
     from google import genai
+    from google.genai.errors import ServerError
 
-    def run():
+    def run_once():
         client = genai.Client(api_key=GEMINI_API_KEY)
         response = client.models.generate_content(
             model=GEMINI_MODEL,
@@ -539,15 +540,28 @@ async def ai_text(prompt):
         )
         return response.text or "Gemini не вернул текстовый ответ."
 
-    return await asyncio.to_thread(run)
+    delays = [2, 4, 7]
+    last_error = None
+    for attempt in range(4):
+        try:
+            return await asyncio.to_thread(run_once)
+        except ServerError as e:
+            last_error = e
+            if "503" not in str(e) and "UNAVAILABLE" not in str(e):
+                raise
+            if attempt < 3:
+                await asyncio.sleep(delays[attempt])
+
+    raise last_error
 
 
 async def ai_photo(file_bytes, caption=""):
     import asyncio
     from google import genai
     from google.genai import types
+    from google.genai.errors import ServerError
 
-    def run():
+    def run_once():
         client = genai.Client(api_key=GEMINI_API_KEY)
         image = types.Part.from_bytes(data=file_bytes, mime_type="image/jpeg")
         prompt = (
@@ -566,7 +580,19 @@ async def ai_photo(file_bytes, caption=""):
         )
         return response.text or "Gemini не вернул текстовый ответ."
 
-    return await asyncio.to_thread(run)
+    delays = [2, 4, 7]
+    last_error = None
+    for attempt in range(4):
+        try:
+            return await asyncio.to_thread(run_once)
+        except ServerError as e:
+            last_error = e
+            if "503" not in str(e) and "UNAVAILABLE" not in str(e):
+                raise
+            if attempt < 3:
+                await asyncio.sleep(delays[attempt])
+
+    raise last_error
 
 
 @dp.message(F.photo)
@@ -610,7 +636,8 @@ async def handle_text(message: Message):
         except Exception as e:
             print(f"GEMINI ERROR: {type(e).__name__}: {e}", flush=True)
             await message.answer(
-                f"Ошибка ИИ:\n{type(e).__name__}: {str(e)[:1000]}"
+                "Gemini сейчас перегружен или временно недоступен. "
+                "Я уже сделал несколько попыток. Попробуй повторить запрос через минуту."
             )
         return
 
