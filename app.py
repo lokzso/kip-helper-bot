@@ -61,7 +61,7 @@ def b(text, data):
 
 def main_menu():
     return kb([
-        [b("📈 Сигналы 4–20 мА", "signals")],
+        [b("📈 Токовые сигналы", "signals")],
         [b("⚡ Электрокалькуляторы", "electric")],
         [b("🌡 Температура / Pt100", "temperature")],
         [b("🎛 Датчики КИП", "sensors")],
@@ -84,7 +84,9 @@ def signals_menu():
         [b("мА → значение", "ma_to_value")],
         [b("значение → мА", "value_to_ma")],
         [b("0–10 В → %", "v_to_percent")],
-        [b("0–5 мА → %", "ma05_to_percent")],
+        [b("0–5 мА → %", "ma05_to_percent"), b("% → 0–5 мА", "percent_to_ma05")],
+        [b("0–10 мА → %", "ma010_to_percent"), b("% → 0–10 мА", "percent_to_ma010")],
+        [b("0–20 мА → %", "ma020_to_percent"), b("% → 0–20 мА", "percent_to_ma020")],
         [b("📚 Разница сигналов", "signal_info")],
         [b("⬅️ В меню", "menu")],
     ])
@@ -239,6 +241,11 @@ MODE_MAP = {
     "value_to_ma": ("value_to_ma", "Введи <code>значение минимум максимум</code>\nПример: <code>0.75 0 1.6</code>", "signals"),
     "v_to_percent": ("v_to_percent", "Введи напряжение 0–10 В, например <code>6.2</code>", "signals"),
     "ma05_to_percent": ("ma05_to_percent", "Введи ток 0–5 мА, например <code>2.5</code>", "signals"),
+    "percent_to_ma05": ("percent_to_ma05", "Введи процент 0–100, например <code>50</code>", "signals"),
+    "ma010_to_percent": ("ma010_to_percent", "Введи ток 0–10 мА, например <code>5</code>", "signals"),
+    "percent_to_ma010": ("percent_to_ma010", "Введи процент 0–100, например <code>50</code>", "signals"),
+    "ma020_to_percent": ("ma020_to_percent", "Введи ток 0–20 мА, например <code>10</code>", "signals"),
+    "percent_to_ma020": ("percent_to_ma020", "Введи процент 0–100, например <code>50</code>", "signals"),
     "calc_u": ("calc_u", "Введи <code>I R</code> (А и Ом). Пример: <code>0.5 220</code>", "electric"),
     "calc_i": ("calc_i", "Введи <code>U R</code>. Пример: <code>24 120</code>", "electric"),
     "calc_r": ("calc_r", "Введи <code>U I</code>. Пример: <code>24 0.02</code>", "electric"),
@@ -264,7 +271,9 @@ async def signal_info(callback: CallbackQuery):
         "📚 <b>Сигналы КИП</b>\n\n"
         "• 4–20 мА: 4 мА = 0%, 20 мА = 100%.\n"
         "• 4 мА позволяет отличить рабочий ноль от обрыва.\n"
-        "• 0–5 мА — старый унифицированный токовый сигнал.\n"
+        "• 0–5 мА: 0 мА = 0%, 5 мА = 100%.\n"
+        "• 0–10 мА: 0 мА = 0%, 10 мА = 100%.\n"
+        "• 0–20 мА: 0 мА = 0%, 20 мА = 100%.\n"
         "• 0–10 В удобен, но сильнее зависит от падения напряжения и помех.\n"
         "• Для длинных линий обычно удобнее токовая петля."
     )
@@ -629,7 +638,27 @@ async def handle_text(message: Message):
 
         elif mode == "ma05_to_percent":
             ma = nums[0]
-            text = f"📈 <b>{ma:g} мА = {ma/5*100:.2f}%</b>"
+            text = f"📈 <b>{ma:g} мА (0–5) = {ma/5*100:.2f}%</b>"
+
+        elif mode == "percent_to_ma05":
+            p = nums[0]
+            text = f"📈 <b>{p:g}% = {p/100*5:.3f} мА (0–5)</b>"
+
+        elif mode == "ma010_to_percent":
+            ma = nums[0]
+            text = f"📈 <b>{ma:g} мА (0–10) = {ma/10*100:.2f}%</b>"
+
+        elif mode == "percent_to_ma010":
+            p = nums[0]
+            text = f"📈 <b>{p:g}% = {p/100*10:.3f} мА (0–10)</b>"
+
+        elif mode == "ma020_to_percent":
+            ma = nums[0]
+            text = f"📈 <b>{ma:g} мА (0–20) = {ma/20*100:.2f}%</b>"
+
+        elif mode == "percent_to_ma020":
+            p = nums[0]
+            text = f"📈 <b>{p:g}% = {p/100*20:.3f} мА (0–20)</b>"
 
         elif mode == "calc_u":
             i, r = nums
