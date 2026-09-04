@@ -19,19 +19,6 @@
 - Уроки, тесты, XP и уровни
 - Поиск документации через Gemini + Google Search grounding, если доступно модели
 
-## Важно про сохранение данных на бесплатном Render
-`Мои приборы`, `Журнал` и XP хранятся в SQLite по пути `/tmp/kip_helper.db`.
-На бесплатном Render файловая система временная: после нового deploy/перезапуска эти данные могут исчезнуть.
-Для постоянного хранения позже лучше подключить бесплатную внешнюю БД (например Supabase/Neon).
 
-## Render
-Обязательные переменные:
-- `BOT_TOKEN`
-- `PYTHON_VERSION=3.13.5`
 
-Для ИИ:
-- `GEMINI_API_KEY`
-- `GEMINI_MODEL=gemini-3.6-flash`
 
-Start Command:
-`uvicorn app:app --host 0.0.0.0 --port $PORT`
