@@ -15,4 +15,6 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
-        value: gemini-2.5-flash-lite
+        value: gemini-3.6-flash
+      - key: DATA_PATH
+        value: /tmp/kip_helper.db
