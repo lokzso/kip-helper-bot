@@ -14,8 +14,8 @@ from fastapi import FastAPI, Request, HTTPException
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "kip-helper-secret")
 BASE_URL = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
-AI_MODEL = os.environ.get("AI_MODEL", "gpt-5.6-luna")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash-lite")
 
 bot = Bot(BOT_TOKEN)
 dp = Dispatcher()
@@ -469,10 +469,10 @@ async def quiz_answer(callback: CallbackQuery):
 async def ai_mode(callback: CallbackQuery):
     uid = callback.from_user.id
     user_modes[uid] = "ai"
-    if OPENAI_API_KEY:
+    if GEMINI_API_KEY:
         text = "🤖 <b>ИИ-КИПовец</b>\n\nНапиши вопрос обычным текстом."
     else:
-        text = "🤖 <b>ИИ-КИПовец</b>\n\nЧтобы включить ИИ, добавь <code>OPENAI_API_KEY</code> в Render. Остальные функции работают без него."
+        text = "🤖 <b>ИИ-КИПовец</b>\n\nЧтобы включить бесплатный ИИ, добавь <code>GEMINI_API_KEY</code> в Render. Остальные функции работают без него."
     await callback.message.edit_text(text, reply_markup=back("menu"), parse_mode="HTML")
     await callback.answer()
 
@@ -481,10 +481,10 @@ async def ai_mode(callback: CallbackQuery):
 async def vision_mode(callback: CallbackQuery):
     uid = callback.from_user.id
     user_modes[uid] = "vision"
-    if OPENAI_API_KEY:
+    if GEMINI_API_KEY:
         text = "📷 <b>Что за прибор?</b>\n\nОтправь фотографию прибора."
     else:
-        text = "📷 <b>Распознавание прибора</b>\n\nДля анализа фото добавь <code>OPENAI_API_KEY</code> в Render."
+        text = "📷 <b>Распознавание прибора</b>\n\nДля анализа фото через Gemini добавь <code>GEMINI_API_KEY</code> в Render."
     await callback.message.edit_text(text, reply_markup=back("menu"), parse_mode="HTML")
     await callback.answer()
 
@@ -520,47 +520,53 @@ def resistor_to_colors(value):
 
 
 async def ai_text(prompt):
-    from openai import AsyncOpenAI
-    client = AsyncOpenAI(api_key=OPENAI_API_KEY)
-    resp = await client.responses.create(
-        model=AI_MODEL,
-        input=(
-            "Ты помощник слесаря КИПиА. Отвечай по-русски, практично и кратко. "
-            "Не выдумывай характеристики конкретного прибора без шильдика или документации. "
-            "Если речь о работе под напряжением, напоминай о безопасном отключении и допуске.\n\n"
-            f"Вопрос: {prompt}"
+    import asyncio
+    from google import genai
+
+    def run():
+        client = genai.Client(api_key=GEMINI_API_KEY)
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=(
+                "Ты практичный помощник слесаря КИПиА. Отвечай по-русски, понятно и по делу. "
+                "Помогай с датчиками, 4–20/0–20/0–10/0–5 мА, Pt100, термопарами, "
+                "мультиметром, схемами, поиском неисправностей и расчётами. "
+                "Не выдумывай точные характеристики конкретного прибора без шильдика или документации. "
+                "Если работа может быть опасной, напомни об отключении питания, проверке отсутствия напряжения "
+                "и соблюдении допуска/инструкций предприятия.\n\n"
+                f"Вопрос пользователя: {prompt}"
+            ),
         )
-    )
-    return resp.output_text
+        return response.text or "Gemini не вернул текстовый ответ."
+
+    return await asyncio.to_thread(run)
 
 
 async def ai_photo(file_bytes, caption=""):
-    from openai import AsyncOpenAI
-    client = AsyncOpenAI(api_key=OPENAI_API_KEY)
-    b64 = base64.b64encode(file_bytes).decode("ascii")
+    import asyncio
+    from google import genai
+    from google.genai import types
 
-    resp = await client.responses.create(
-        model=AI_MODEL,
-        input=[{
-            "role": "user",
-            "content": [
-                {
-                    "type": "input_text",
-                    "text": (
-                        "Определи прибор КИП/электрики на фото. "
-                        "Опиши назначение, что читается на шильдике и как обычно его проверяют. "
-                        "Если модель не читается — не выдумывай. "
-                        f"Комментарий пользователя: {caption}"
-                    )
-                },
-                {
-                    "type": "input_image",
-                    "image_url": f"data:image/jpeg;base64,{b64}"
-                }
-            ]
-        }]
-    )
-    return resp.output_text
+    def run():
+        client = genai.Client(api_key=GEMINI_API_KEY)
+        image = types.Part.from_bytes(data=file_bytes, mime_type="image/jpeg")
+        prompt = (
+            "Ты помощник слесаря КИПиА. Проанализируй фотографию прибора/электрооборудования. "
+            "Ответь по-русски и структурированно: 1) что это предположительно, "
+            "2) для чего используется, 3) что реально читается на шильдике/маркировке, "
+            "4) какой сигнал/питание видно или можно уверенно определить, "
+            "5) как обычно проверить такой прибор. "
+            "Если модель, параметры или надписи не читаются — прямо скажи, не выдумывай. "
+            "Не советуй работать под напряжением без необходимости и мер безопасности. "
+            f"Комментарий пользователя: {caption}"
+        )
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=[image, prompt],
+        )
+        return response.text or "Gemini не вернул текстовый ответ."
+
+    return await asyncio.to_thread(run)
 
 
 @dp.message(F.photo)
@@ -571,8 +577,8 @@ async def photo_handler(message: Message):
         await message.answer("Для анализа фото открой раздел «📷 Что за прибор?»")
         return
 
-    if not OPENAI_API_KEY:
-        await message.answer("Нужно добавить OPENAI_API_KEY в Render.")
+    if not GEMINI_API_KEY:
+        await message.answer("Нужно добавить GEMINI_API_KEY в Render.")
         return
 
     try:
@@ -594,8 +600,8 @@ async def handle_text(message: Message):
     raw = (message.text or "").replace(",", ".").strip()
 
     if mode == "ai":
-        if not OPENAI_API_KEY:
-            await message.answer("Добавь OPENAI_API_KEY в Render, чтобы включить ИИ.")
+        if not GEMINI_API_KEY:
+            await message.answer("Добавь GEMINI_API_KEY в Render, чтобы включить ИИ.")
             return
         try:
             await message.answer("🤖 Думаю…")
