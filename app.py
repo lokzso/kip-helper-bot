@@ -608,10 +608,10 @@ async def handle_text(message: Message):
             answer = await ai_text(raw)
             await message.answer(answer, reply_markup=back("menu"))
         except Exception as e:
-    print(f"GEMINI ERROR: {type(e).__name__}: {e}", flush=True)
-    await message.answer(
-        f"Ошибка ИИ:\n{type(e).__name__}: {str(e)[:1000]}"
-    )
+            print(f"GEMINI ERROR: {type(e).__name__}: {e}", flush=True)
+            await message.answer(
+                f"Ошибка ИИ:\n{type(e).__name__}: {str(e)[:1000]}"
+            )
         return
 
     if not mode:
