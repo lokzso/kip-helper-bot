@@ -12,13 +12,4 @@ Telegram-бот для быстрых расчётов и шпаргалок п�
 - Краткая шпаргалка по мультиметру
 - Базовая шпаргалка КИПиА
 
-## Переменные окружения
-- `BOT_TOKEN` — токен Telegram-бота от @BotFather
-- `WEBHOOK_SECRET` — секрет webhook
-- `RENDER_EXTERNAL_URL` — Render добавляет автоматически
 
-## Запуск на Render
-1. Создай Web Service из этого репозитория.
-2. Render прочитает `render.yaml`.
-3. Добавь `BOT_TOKEN` в Environment.
-4. После деплоя открой бота в Telegram и отправь `/start`.
